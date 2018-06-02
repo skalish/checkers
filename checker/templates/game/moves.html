@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Moves{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <table class="table">
+    <tr>
+      <th>Move Number</th>
+      <th>Game</th>
+      <th>Player</th>
+      <th>Piece</th>
+      <th>Initial Position</th>
+      <th>Final Position</th>
+      <th>Time</th>
+    </tr>
+  {% for move in gamemoves %}
+    <tr>
+      <td>{{ move['id'] }}</td>
+      <td>{{ move['game_id'] }}</td>
+      <td>{{ move['username'] }}</td>
+      <td>{{ move['piece_id'] }}</td>
+      <td>{{ move['position_before'] }}</td>
+      <td>{{ move['position_after'] }}</td>
+      <td>{{ move['created'] }}</td>
+    </tr>
+  {% endfor %}
+{% endblock %}
+

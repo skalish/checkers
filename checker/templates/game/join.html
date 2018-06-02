@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Join a Game{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form action="{{ url_for('game.join') }}" method='POST'>
+    <table>
+      <tr>
+        <td>Select game to join:</td>
+        <td><select name="game_id" id="game_id">
+          {% for game in games %}
+          <option value="{{ game['id'] }}">Game {{ game['id'] }}</option>
+          {% endfor %}
+        </select></td>
+        <td><button type="submit">Join!</button></td>
+      </tr>
+    </table>
+  </form>
+{% endblock %}
+

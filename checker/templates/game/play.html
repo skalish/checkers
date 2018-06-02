@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  {% if game != None %}
+    <h1>{% block title %}Game {{ game['id'] }}: {{ player1['username'] }} v. {{ player2['username'] }}{% endblock %}</h1>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if game == None %}
+    <h3>You are not in a game.</h3>
+  {% endif %}
+
+  {% if game != None %}
+    {% if player_id == player1['id'] %}
+      {% if game['player_turn'] == 1 %}
+        <h3>You are playing white. It is your turn.</h3>
+      {% elif game['player_turn'] == 2 %}
+        <h3>You are playing white. It is your opponent's turn.</h3>
+      {% endif %}
+    {% elif player_id == player2['id'] %}
+      {% if game['player_turn'] == 1 %}
+        <h3>You are playing black. It is your opponent's turn.</h3>
+      {% elif game['player_turn'] == 2 %}
+        <h3>You are playing black. It is your turn.</h3>
+      {% endif %}
+    {% endif %}
+
+    
+    <table>
+      <tr>
+        <form id="move_form" method="post">
+          <td><label for="pos_before">Current Position</label></td>
+          <td><input name="pos_before" id="pos_before" value="{{ request.form['pos_before'] }}" size="4" required></td>
+          <td><label for="pos_after">Destination</label></td>
+          <td><input name="pos_after" id="pos_after" value="{{ request.form['pos_after'] }}" size="4" required></td>
+          <td><input type="submit" value="Move"></td>
+        </form>
+        <form action="{{ url_for('game.delete', id=game['id']) }}" method="post">
+          <td>
+            <input class="danger" type="submit" value="Quit and Delete Game" onclick="return confirm('Are you sure?');">
+          </td>
+        </form>
+      </tr>
+    </table>
+  {% endif %}
+
+  <table class="table" id="chessboard" style="width:100%">
+    <tr>
+    {% for col in ' abcdefgh ' %}
+      <td>{{ col.strip() }}</td>
+    {% endfor %}
+    </tr>
+  {% for row in '87654321' %}
+    <tr>
+      <td>{{ row }}</td>
+    {% for col in 'abcdefgh' %}
+      <td>
+        {% for piece in pieces %}
+          {% if piece['position'] == (col + row) %}
+            {% if piece['ingame_id'] <= 12 %}
+              {{ ['\u2659','\u2654'][piece['king']] }}
+            {% elif piece['ingame_id'] > 12 %}            
+              {{ ['\u265F','\u265A'][piece['king']] }}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </td>
+    {% endfor %}
+      <td>{{ row }}</td>
+    </tr>
+  {% endfor %}
+    <tr>
+    {% for col in ' abcdefgh ' %}
+      <td>{{ col.strip() }}</td>
+    {% endfor %}
+    </tr>
+  </table>
+
+{% endblock %}
+

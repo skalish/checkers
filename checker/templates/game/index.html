@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Game {{game_id}}: {{player1['username']}} v. {{player2['username']}}{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form action="/" method='POST'>
+    <table>
+      <tr>
+        <td>Select game to view:</td>
+        <td><select name="game_id" id="game_id">
+          {% for game in games %}
+          <option value="{{ game['id'] }}">Game {{ game['id'] }}</option>
+          {% endfor %}
+        </select></td>
+        <td><button type="submit">Go!</button></td>
+      </tr>
+    </table>
+  </form>
+
+  <table class="table" id="chessboard" style="width:100%">
+    <tr>
+    {% for col in ' abcdefgh ' %}
+      <td>{{ col.strip() }}</td>
+    {% endfor %}
+    </tr>
+  {% for row in '87654321' %}
+    <tr>
+      <td>{{ row }}</td>
+    {% for col in 'abcdefgh' %}
+      <td>
+        {% for piece in pieces %}
+          {% if piece['position'] == (col + row) %}
+            {% if piece['ingame_id'] <= 12 %}
+              {{ ['\u2659','\u2654'][piece['king']] }}
+            {% elif piece['ingame_id'] > 12 %}            
+              {{ ['\u265F','\u265A'][piece['king']] }}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </td>
+    {% endfor %}
+      <td>{{ row }}</td>
+    </tr>
+  {% endfor %}
+    <tr>
+    {% for col in ' abcdefgh ' %}
+      <td>{{ col.strip() }}</td>
+    {% endfor %}
+    </tr>
+  </table>
+
+{% endblock %}
+
