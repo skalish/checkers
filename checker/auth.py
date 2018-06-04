@@ -37,9 +37,12 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = get_db().execute(
-            'SELECT * FROM user WHERE id = ?', (user_id,)
-        ).fetchone()
+        cur = get_db().cursor()
+        cur.execute(
+             'SELECT * FROM users WHERE id = %s', (user_id,)
+        )
+        g.user = cur.fetchone()
+
 
 # define Register view at '/auth/register'
 @bp.route('/register', methods=('GET', 'POST'))
@@ -48,8 +51,6 @@ def register():
     Validates that the username is not already taken. Hashes the password
     for security.
     """
-    from checker.game import create_game
-    from checker.game import populate_board
 
     if request.method == 'POST':
         # get username and password entered by user
@@ -57,6 +58,10 @@ def register():
         password = request.form['password']
         # load database
         db = get_db()
+        cur = db.cursor()
+        cur.execute(
+            'SELECT id FROM users WHERE username = %s', (username,)
+        )
         error = None
 
         # check that a username is entered, a password is entered, and that
@@ -65,21 +70,16 @@ def register():
             error = 'Username is required.'
         elif not password:
             error = 'Password is required.'
-        elif db.execute(
-            'SELECT id FROM user WHERE username = ?', (username,)
-        ).fetchone() is not None:
+        elif cur.fetchone() is not None:
             error = 'User {} is already registered.'.format(username)
 
         if error is None:
             # the name is available, store it in the database and go to the
             # login page
-            db.execute(
-                'INSERT INTO user (username, password) VALUES (?, ?)',
+            cur.execute(
+                'INSERT INTO users (username, password) VALUES (%s, %s)',
                 (username, generate_password_hash(password))
             )
-            user = db.execute(
-                'SELECT id FROM user WHERE username = ?', (username,)
-            ).fetchone()
 
             db.commit()
             return redirect(url_for('auth.login'))
@@ -98,9 +98,11 @@ def login():
         password = request.form['password']
         db = get_db()
         error = None
-        user = db.execute(
-            'SELECT * FROM user WHERE username = ?', (username,)
-        ).fetchone()
+        cur = db.cursor()
+        cur.execute(
+            'SELECT * FROM users WHERE username = %s', (username,)
+        )
+        user = cur.fetchone()
 
         if user is None:
             error = 'Incorrect username.'
@@ -111,7 +113,7 @@ def login():
             # store the user id in a new session and return to the index
             session.clear()
             session['user_id'] = user['id']
-            if user['game_id'] != None and user['game_id'] > 0:
+            if user['game_id'] is not None and user['game_id'] > 0:
                 return redirect(url_for('game.play'))
             else:
                 return redirect(url_for('game.join'))
@@ -120,10 +122,10 @@ def login():
 
     return render_template('auth/login.html')
 
+
 # define Logout view at '/auth/logout'
 @bp.route('/logout')
 def logout():
     """Clear the current session, including the stored user id."""
     session.clear()
     return redirect(url_for('index'))
-
