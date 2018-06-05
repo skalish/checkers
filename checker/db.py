@@ -1,5 +1,5 @@
 # File that creates connection to SQLite database.
-import psycopg2
+import psycopg2, os
 import psycopg2.extras
 import click
 from flask import current_app, g
@@ -14,8 +14,11 @@ def get_db():
     """
 
     if 'db' not in g:
-        g.db = psycopg2.connect(dbname="checker", user="skalish",
+        DATABASE_URL = os.environ['DATABASE_URL']
+        g.db = psycopg2.connect(DATABASE_URL, sslmode='require',
                                 cursor_factory=psycopg2.extras.RealDictCursor)
+#        g.db = psycopg2.connect(dbname="checker", user="skalish",
+#                                cursor_factory=psycopg2.extras.RealDictCursor)
     return g.db
 
 
