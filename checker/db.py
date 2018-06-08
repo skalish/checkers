@@ -14,12 +14,10 @@ def get_db():
     """
 
     if 'db' not in g:
-        if os.environ['FLASK_ENV'] == 'development':
-            g.db = psycopg2.connect(dbname="checker", user="skalish",
-                                    cursor_factory=psycopg2.extras.RealDictCursor)
-        else:
-            g.db = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require',
-                                    cursor_factory=psycopg2.extras.RealDictCursor)
+        # g.db = psycopg2.connect(dbname="checker", user="skalish",
+        #                        cursor_factory=psycopg2.extras.RealDictCursor)
+        g.db = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require',
+                                cursor_factory=psycopg2.extras.RealDictCursor)
 
     return g.db
 
