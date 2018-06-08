@@ -1,0 +1,13 @@
+After making code changes:
+    git add .
+    git commit -m "Message" ## Commit changes. Optional message.
+    git push origin         ## Push to github
+    git push heroku master  ## Push to Heroku
+
+To initialize remote database:
+    export FLASK_APP=checker
+    export FLASK_ENV=development
+    flask init-db                 ## Initialize local database to empty
+    heroku pg:push checker DATABASE_URL --app sk-checker
+   (heroku pg:push localdb DATABASE_URL --app heroku_app)
+
