@@ -16,7 +16,7 @@ def create_app(test_config=None):
     # set some default configuration
     app.config.from_mapping(
         # a default secret that should be overridden by instance config
-        SECRET_KEY='dev',
+        SECRET_KEY='jJjw0jileutrd6X2PivXvdhwKztEIAzJ',
         # store the database in the instance folder
         DATABASE=os.path.join(app.instance_path, 'checker.sqlite'),
     )
