@@ -36,7 +36,7 @@
           <td><input name="pos_after" id="pos_after" value="{{ request.form['pos_after'] }}" size="4" required></td>
           <td><input type="submit" value="Move"></td>
         </form>
-        <form action="{{ url_for('game.delete', {% id=game['id'] %}) }}" method="post">
+        <form action="{{ url_for('game.delete', id=game['id']) }}" method="post">
           <td>
             <input class="danger" type="submit" value="Quit and Delete Game" onclick="return confirm('Are you sure?');">
           </td>
