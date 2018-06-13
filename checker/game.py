@@ -162,14 +162,9 @@ def play():
                     is_king = 1
     
                 cur.execute(
-                    'UPDATE piece SET position = %s'
+                    'UPDATE piece SET position = %s king = %s'
                     ' WHERE (id = %s AND game_id = %s)',
-                    (pos_after, piece_tomove['id'], game_id)
-                )
-                cur.execute(
-                    'UPDATE piece SET king = %s'
-                    ' WHERE (id = %s AND game_id = %s)',
-                    (is_king, piece_tomove['id'], game_id)
+                    (pos_after, is_king, piece_tomove['id'], game_id)
                 )
                 # record move
                 cur.execute(
@@ -338,6 +333,7 @@ def delete(game_id):
     cur.execute('DELETE FROM game WHERE id = %s', (game_id,))
 
     db.commit()
+    cur.close()
     return redirect(url_for('game.index'))
 
 
