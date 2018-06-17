@@ -43,7 +43,7 @@ def create_app(test_config=None):
     from . import db
     db.init_app(app)
 
-    # apply the blueprints to the app
+    # apply the bluprints to the app
     from . import auth
     app.register_blueprint(auth.bp)
     from . import game
@@ -53,3 +53,4 @@ def create_app(test_config=None):
     app.add_url_rule('/', endpoint='index')
 
     return app
+

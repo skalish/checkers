@@ -2,6 +2,7 @@
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, url_for
 )
+from werkzeug.exceptions import abort
 
 from checker.auth import login_required
 from checker.db import get_db
@@ -22,12 +23,12 @@ def index():
         'SELECT g.id, player1_id, player2_id FROM game g'
     )
     games = cur.fetchall()
-
+    
     game_id = 1
 
     if request.method == 'POST':
         game_id = request.form['game_id']
-
+    
     cur.execute(
         'SELECT p.id, position, king, player_id, ingame_id'
         ' FROM piece p WHERE game_id = %s',
@@ -39,8 +40,9 @@ def index():
     player1 = players[0]
     player2 = players[1]
 
-    return render_template('game/index.html', pieces=pieces, games=games,
-                           game_id=game_id, player1=player1, player2=player2)
+    return render_template('game/index.html', pieces=pieces, \
+                        games=games, game_id=game_id, \
+                        player1=player1, player2=player2)    
 
 
 # define Play view at '/play'
@@ -61,7 +63,7 @@ def play():
 
     game_id = user_info['game_id']
     
-    if game_id is None:
+    if game_id == None:
         flash('You are not currently in a game.')
         return redirect(url_for('/'))
 
@@ -81,13 +83,19 @@ def play():
     )
     pieces = cur.fetchall()
 
+    cur.execute(
+        'SELECT m.id, player_id, created FROM move m WHERE game_id = %s '
+        ' ORDER BY m.id DESC', (game_id,)
+    )
+    moves = cur.fetchall()
+
     # check if player still has pieces
     own_pieces = False
     for piece in pieces:
         if piece['player_id'] == g.user['id']:
             own_pieces = True
             break
-
+    
     if player1 is None or player2 is None:
         flash('Still waiting on another player.')
         return render_template('game/play.html', pieces=pieces, player1=player1, player2=player2,
@@ -97,6 +105,7 @@ def play():
         flash('You lost!')
         return render_template('game/play.html', pieces=pieces, player1=player1, player2=player2,
                                game=game, player_id=user_info['id'])
+
     else:
         legal_pos = legal_positions()
 
@@ -110,21 +119,22 @@ def play():
                 player_num = 1
             elif g.user['id'] == player2['id']:
                 player_num = 2
-    
+
             if game['player_turn'] != player_num:
                 error = 'It is not your turn.'
-    
+
             # make sure a current position is entered
             elif not pos_before:
                 error = 'Current piece position is required.'
 
             # make sure a legal position is input
-            elif pos_before not in legal_pos:
+            elif not pos_before in legal_pos:
                 error = 'That is not a legal position.'
 
             # get piece at current position
             piece_tomove = get_piece(pos_before, game_id)
-            if piece_tomove is None or piece_tomove['player_id'] != g.user['id']:
+            if piece_tomove == None or piece_tomove['player_id'] != \
+                                              g.user['id']:
                 error = 'You have no piece at that location.'
     
             else:
@@ -134,21 +144,24 @@ def play():
     
                 # set legitimate directions for piece movement
                 directions = []
-                if piece_tomove['player_id'] == player1['id'] or piece_tomove['king'] == 1:
+                if piece_tomove['player_id'] == player1['id'] or \
+                   piece_tomove['king'] == 1:
                     directions.append(7)
                     directions.append(9)
-                if piece_tomove['player_id'] == player2['id'] or piece_tomove['king'] == 1:
+                if piece_tomove['player_id'] == player2['id'] or \
+                   piece_tomove['king'] == 1:
                     directions.append(1)
                     directions.append(3)
 
                 # create list of legal moves
-                legal_moves = legal_move_fn(piece_tomove, pos_before, player1, player2)
+                legal_moves = legal_move_fn(piece_tomove, pos_before, \
+                                            pos_after, player1, player2)
                 # make sure a legal position is input
-                if pos_after not in legal_moves[0]:
+                if not pos_after in legal_moves[0]:
                     error = 'That is not a legal move.'
         
                 # return error if a piece is in destination
-                if get_piece(pos_after, game_id) is not None:
+                if get_piece(pos_after, game_id) != None:
                     error = 'There is a piece there already.'
     
             if error is not None:
@@ -156,31 +169,37 @@ def play():
             else:
                 # move piece and 'king' it if it reached far row
                 is_king = piece_tomove['king']
-                if piece_tomove['player_id'] == player1['id'] and pos_after[1] == '8':
+                if piece_tomove['player_id'] == player1['id'] and \
+                   pos_after[1] == '8':
                     is_king = 1
-                if piece_tomove['player_id'] == player2['id'] and pos_after[1] == '1':
+                if piece_tomove['player_id'] == player2['id'] and \
+                   pos_after[1] == '1':
                     is_king = 1
     
                 cur.execute(
-                    'UPDATE piece SET position = %s king = %s'
+                    'UPDATE piece SET position = %s'
                     ' WHERE (id = %s AND game_id = %s)',
-                    (pos_after, is_king, piece_tomove['id'], game_id)
+                    (pos_after, piece_tomove['id'], game_id)
+                )
+                cur.execute(
+                    'UPDATE piece SET king = %s'
+                    ' WHERE (id = %s AND game_id = %s)',
+                    (is_king, piece_tomove['id'], game_id)
                 )
                 # record move
                 cur.execute(
                     'INSERT INTO move (player_id, piece_id,'
                     ' position_before, position_after, game_id)'
                     ' VALUES (%s, %s, %s, %s, %s)',
-                    (piece_tomove['player_id'], piece_tomove['id'], pos_before, pos_after, game_id)
+                    (piece_tomove['player_id'], piece_tomove['id'], \
+                     pos_before, pos_after, game_id)
                 )
-                player_turn = (game['player_turn']) % 2 + 1
                 cur.execute(
                     'UPDATE game SET player_turn = %s WHERE id = %s',
-                    (player_turn, game_id)
+                    ((game['player_turn']) % 2 + 1, game_id)
                 )
                 # if a piece was captured, remove it from the game
                 cap_index = 0
-                legal_moves = legal_move_fn(piece_tomove, pos_before, player1, player2)
                 for cap_move in legal_moves[1]:
                     if pos_after == cap_move:
                         cur.execute(
@@ -198,6 +217,12 @@ def play():
         )
         pieces = cur.fetchall()
 
+        cur.execute(
+            'SELECT m.id, player_id, created FROM move m WHERE game_id = %s '
+            ' ORDER BY m.id DESC', (game_id,)
+        )
+        moves = cur.fetchall()
+
         # check if opponent still has pieces
         opponents = False
         for piece in pieces:
@@ -205,15 +230,16 @@ def play():
                 opponents = True
                 break
     
-        if not opponents and player1 is not None and player2 is not None:
+        if opponents == False and player1 != None and player2 != None:
             flash('You won!')
 
-    return render_template('game/play.html', pieces=pieces, player1=player1,
-                           player2=player2, game=game, player_id=g.user['id'])
+    return render_template('game/play.html', pieces = pieces, \
+                            player1 = player1, player2 = player2, \
+                            game = game, player_id = g.user['id'])
 
 
 # define Moves view at '/moves'
-@bp.route('/moves', methods=('GET', 'POST'))
+@bp.route('/moves', methods=('GET','POST'))
 def moves():
     """Show history of moves in game."""
     db = get_db()
@@ -229,13 +255,12 @@ def moves():
 
 
 # define Join view at '/join'
-@bp.route('/join', methods=('GET', 'POST'))
+@bp.route('/join', methods=('GET','POST'))
 @login_required
 def join():
     """Allow players to join open games."""
     db = get_db()
     cur = db.cursor()
-
     error = None
 
     cur.execute(
@@ -245,7 +270,7 @@ def join():
     open_games = cur.fetchone()
 
     if request.method == 'GET':
-        if open_games is None:
+        if open_games == None:
             create_game()
 
     cur.execute(
@@ -260,7 +285,7 @@ def join():
     )
     player = cur.fetchone()
 
-    if player['game_id'] is not None:
+    if player['game_id'] != None:
         if player['game_id'] != 0:
             error = 'You are already in an unfinished game.'
 
@@ -312,28 +337,30 @@ def join():
 # define Delete view at '/delete'
 @bp.route('/<int:id>/delete', methods=('POST',))
 @login_required
-def delete(game_id):
+def delete(id):
     """Delete current game."""
     db = get_db()
     cur = db.cursor()
+
     cur.execute(
         'SELECT g.id, player1_id, player2_id FROM game g WHERE g.id = %s',
-        (game_id,)
+        (id,)
     )
     game = cur.fetchone()
 
     cur.execute('UPDATE users SET game_id = 0 WHERE id = %s',
-                (game['player1_id'],)
-                )
+        (game['player1_id'],)
+    )
+
     cur.execute('UPDATE users SET game_id = 0 WHERE id = %s',
-                (game['player2_id'],)
-                )
-    cur.execute('DELETE FROM move WHERE game_id = %s', (game_id,))
-    cur.execute('DELETE FROM piece WHERE game_id = %s', (game_id,))
-    cur.execute('DELETE FROM game WHERE id = %s', (game_id,))
+        (game['player2_id'],)
+    )
+
+    cur.execute('DELETE FROM move WHERE game_id = %s', (id,))
+    cur.execute('DELETE FROM piece WHERE game_id = %s', (id,))
+    cur.execute('DELETE FROM game WHERE id = %s', (id,))
 
     db.commit()
-    cur.close()
     return redirect(url_for('game.index'))
 
 
@@ -342,6 +369,7 @@ def create_game():
     """Creates a new game in database.  Returns game_id."""
     db = get_db()
     cur = db.cursor()
+
     cur.execute(
         'INSERT INTO game (player1_id, player2_id)'
         ' VALUES (0, 0)'
@@ -362,10 +390,12 @@ def populate_board(game_id, player_id, player_number):
     cur = db.cursor()
     legal_pos = legal_positions()
 
-    legal_pos.sort(key=lambda x: x[1])
+    legal_pos.sort(key = lambda x : x[1])
+
+    init_position = legal_pos[0:12] + legal_pos[20:32]
 
     if player_number == 1:
-        for i in range(0, 12):
+        for i in range(0,12):
             cur.execute(
                 'INSERT INTO piece (player_id, game_id, ingame_id, position)'
                 ' VALUES (%s, %s, %s, %s)',
@@ -373,7 +403,7 @@ def populate_board(game_id, player_id, player_number):
             )
 
     elif player_number == 2:
-        for i in range(0, 12):
+        for i in range(0,12):
             cur.execute(
                 'INSERT INTO piece (player_id, game_id, ingame_id, position)'
                 ' VALUES (%s, %s, %s, %s)',
@@ -387,7 +417,6 @@ def get_piece(position, game_id):
     """Get a piece and its owner by position.
     Checks that the a piece exists at that position.
     :param position: position of piece to get
-    :param game_id: id of current game
     :return: the piece with owner information
     """
     cur = get_db().cursor()
@@ -411,7 +440,7 @@ def get_players(game_id):
     )
     players = cur.fetchone()
 
-    if players is None:
+    if players == None:
         return [None, None]
 
     cur.execute(
@@ -445,7 +474,7 @@ def legal_positions():
 
 
 # define function that defines legal moves for a given piece
-def legal_move_fn(piece, pos_before, player1, player2):
+def legal_move_fn(piece, pos_before, pos_after, player1, player2):
     """Return a list of legal moves for a piece stored in first element.
     Store capturing moves in second element and pieces captured in third.    
     """
@@ -458,18 +487,18 @@ def legal_move_fn(piece, pos_before, player1, player2):
         directions.append(3)
     
     game_id = piece['game_id']
-    legal_moves = [[], [], []]
+    legal_moves = [[],[],[]]
     for direction in directions:
         temp_sqr = next_square(pos_before, direction)
-        if temp_sqr is not None:
-            if get_piece(temp_sqr, game_id) is None:
+        if temp_sqr != None:
+            if get_piece(temp_sqr, game_id) == None:
                 legal_moves[0].append(temp_sqr)
             elif get_piece(temp_sqr, game_id)['player_id'] != g.user['id']:
-                if next_square(temp_sqr, direction) is not None:
+                if next_square(temp_sqr, direction) != None:
                     cap_piece = get_piece(temp_sqr, game_id)
                     temp_sqr = next_square(temp_sqr, direction)
-                    if temp_sqr is not None and \
-                       get_piece(temp_sqr, game_id) is None:
+                    if temp_sqr != None and \
+                       get_piece(temp_sqr, game_id) == None:
                         legal_moves[0].append(temp_sqr)
                         legal_moves[1].append(temp_sqr)
                         legal_moves[2].append(cap_piece)
@@ -478,8 +507,7 @@ def legal_move_fn(piece, pos_before, player1, player2):
 
 # define function to find adjacent legal squares
 def next_square(current_square, direction):
-    """Find the next available square in the given direction
-    :param current_square: current position of piece
+    """Find the next available square in the given direction.
     :param direction: directions as numpad orientation.
     """
     
@@ -500,7 +528,8 @@ def next_square(current_square, direction):
     
     legal_pos = legal_positions()
 
-    if result not in legal_pos:
+    if not result in legal_pos:
         result = None
 
     return result
+

@@ -39,10 +39,9 @@ def load_logged_in_user():
     else:
         cur = get_db().cursor()
         cur.execute(
-             'SELECT * FROM users WHERE id = %s', (user_id,)
+            'SELECT * FROM users WHERE id = %s', (user_id,)
         )
         g.user = cur.fetchone()
-
 
 # define Register view at '/auth/register'
 @bp.route('/register', methods=('GET', 'POST'))
@@ -51,6 +50,8 @@ def register():
     Validates that the username is not already taken. Hashes the password
     for security.
     """
+    from checker.game import create_game
+    from checker.game import populate_board
 
     if request.method == 'POST':
         # get username and password entered by user
@@ -80,6 +81,10 @@ def register():
                 'INSERT INTO users (username, password) VALUES (%s, %s)',
                 (username, generate_password_hash(password))
             )
+            cur.execute(
+                'SELECT id FROM users WHERE username = %s', (username,)
+            )
+            user = cur.fetchone()
 
             db.commit()
             return redirect(url_for('auth.login'))
@@ -97,8 +102,8 @@ def login():
         username = request.form['username']
         password = request.form['password']
         db = get_db()
-        error = None
         cur = db.cursor()
+        error = None
         cur.execute(
             'SELECT * FROM users WHERE username = %s', (username,)
         )
@@ -113,7 +118,7 @@ def login():
             # store the user id in a new session and return to the index
             session.clear()
             session['user_id'] = user['id']
-            if user['game_id'] is not None and user['game_id'] > 0:
+            if user['game_id'] != None and user['game_id'] > 0:
                 return redirect(url_for('game.play'))
             else:
                 return redirect(url_for('game.join'))
@@ -122,10 +127,10 @@ def login():
 
     return render_template('auth/login.html')
 
-
 # define Logout view at '/auth/logout'
 @bp.route('/logout')
 def logout():
     """Clear the current session, including the stored user id."""
     session.clear()
     return redirect(url_for('index'))
+

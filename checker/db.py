@@ -12,7 +12,6 @@ def get_db():
     """Connect to the application's configured database. The connection is
     unique for each request and will be reused if this is called again.
     """
-
     if 'db' not in g:
         if os.environ.get('ENVIRONMENT') == 'prod':
             g.db = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require',
@@ -38,10 +37,9 @@ def close_db(e=None):
 def init_db():
     """Clear existing data and create new tables."""
     db = get_db()
-    cur = db.cursor()
 
     with current_app.open_resource('schema.sql') as f:
-        cur.execute(f.read().decode('utf8'))
+        db.cursor().execute(f.read().decode('utf8'))
     
     from checker.game import create_game
     create_game()
@@ -67,3 +65,4 @@ def init_app(app):
     app.teardown_appcontext(close_db)
     # add new command to be called with flask command
     app.cli.add_command(init_db_command)
+

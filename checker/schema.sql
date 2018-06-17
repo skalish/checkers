@@ -39,10 +39,10 @@ CREATE TABLE move (
   piece_id INTEGER NOT NULL,
   position_before TEXT NOT NULL,
   position_after TEXT NOT NULL,
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (player_id) REFERENCES users (id),
-  FOREIGN KEY (game_id) REFERENCES game (id),
-  FOREIGN KEY (piece_id) REFERENCES piece (id)
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+--  FOREIGN KEY (player_id) REFERENCES users (id),
+--  FOREIGN KEY (game_id) REFERENCES game (id),
+--  FOREIGN KEY (piece_id) REFERENCES piece (id)
 );
 
 
